@@ -5,6 +5,7 @@ namespace Voopite\KeycloakClient;
 use Exception;
 use Illuminate\Support\ServiceProvider;
 use Voopite\EnvironmentEditor\EnvironmentEditor;
+use Voopite\EnvironmentEditor\Exceptions\KeyNotFoundException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Firebase\JWT\JWT;
@@ -148,7 +149,7 @@ class KeycloakClientServiceProvider extends ServiceProvider
 
         try {
             $this->publicKey = $this->editor->getKey("KEYCLOAK_REALM_PUBLIC_KEY");
-        } catch (\Jackiedo\DotenvEditor\Exceptions\KeyNotFoundException $exception) {
+        } catch (KeyNotFoundException $exception) {
             $url = $this->getIssuerUrl();
             $json = $this->getIssuerDetails($url);
             $this->publicKey = $json['public_key'];
