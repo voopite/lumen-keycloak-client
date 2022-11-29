@@ -2,7 +2,8 @@
 
 namespace Voopite\KeycloakClient;
 
-use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Exception;
+use Illuminate\Support\ServiceProvider;
 use Voopite\EnvironmentEditor\EnvironmentEditor;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
@@ -24,6 +25,7 @@ class KeycloakClientServiceProvider extends ServiceProvider
     protected $editor = null;
 
     private $clientToken;
+    private $publicKey;
 
     /**
      *
@@ -35,18 +37,22 @@ class KeycloakClientServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->mergeConfigFrom(__DIR__.'/../../../../../../config/keycloak.php', 'keycloak');
+        $packageConfigPath = __DIR__ . '/config/keycloak.php';
+        $path = 'keycloak.php';
+        $appConfigPath=  $this->app->basePath() . '/config' . ($path ? '/' . $path : $path);
+
+        $this->mergeConfigFrom($appConfigPath, 'keycloak');
 
         $this->editor = $this->app->make(EnvironmentEditor::class);
         $clientTokenExp = null;
 
         try {
-            $this->clientToken = $this->editor->getKey("__CLIENT_TOKEN");
-            $clientTokenExp = $this->editor->getKey("__CLIENT_TOKEN_EXP");
-
-            $timestamp = \is_null(static::$timestamp) ? \time() : static::$timestamp;
-            if (isset($clientTokenExp) && ($timestamp - static::$leeway) >= $clientTokenExp) {
-                throw new ExpiredException('Expired token');
+            $this->clientToken = $this->editor->getValue("__CLIENT_TOKEN");
+            $clientTokenExp = $this->editor->getValue("__CLIENT_TOKEN_EXP");
+            $leeway = 0;
+            $timestamp = \time();
+            if (isset($clientTokenExp) && ($timestamp - $leeway) >= $clientTokenExp) {
+                throw new Exception('Expired token');
             }
         } catch (\Exception $e) {
             $this->clientToken = $this->getClientToken();
@@ -166,6 +172,21 @@ class KeycloakClientServiceProvider extends ServiceProvider
             throw new TokenException($e->getMessage());
         }
         return $decodedToken;
+    }
+
+    /**
+     * Build a valid public key from a string
+     *
+     * @TODO
+     *
+     * @since 1.0.0
+     *
+     * @param  string  $key
+     * @return mixed
+     */
+    private static function buildPublicKey(string $key)
+    {
+        return "-----BEGIN PUBLIC KEY-----\n".wordwrap($key, 64, "\n", true)."\n-----END PUBLIC KEY-----";
     }
 
     /**
